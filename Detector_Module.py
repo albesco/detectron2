@@ -20,8 +20,8 @@ class Detector:
         # Load model config and pre-trained model
         
         if model_type == "KP":  # Keypoint detection
-            self.cfg.merge_from_file( model_zoo.get_config_file("COCO-Keypoints/keypoint_rcnn_R_50_FPN_3x.yaml"))
-            self.cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-Keypoints/keypoint_rcnn_R_50_FPN_3x.yaml")
+            self.cfg.merge_from_file( model_zoo.get_config_file("COCO-Keypoints/keypoint_rcnn_X_101_32x8d_FPN_3x.yaml"))
+            self.cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-Keypoints/keypoint_rcnn_X_101_32x8d_FPN_3x.yaml")
         elif model_type == "PS":  # Panoptic segmentation
             self.cfg.merge_from_file( model_zoo.get_config_file("COCO-PanopticSegmentation/panoptic_fpn_R_101_3x.yaml"))
             self.cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-PanopticSegmentation/panoptic_fpn_R_101_3x.yaml")
@@ -47,7 +47,7 @@ class Detector:
             viz = Visualizer( image[ : , : , : : -1 ] , 
                             metadata = MetadataCatalog.get( self.cfg.DATASETS.TRAIN[0] ), 
                             instance_mode = self.cm )
-            instance_mode = ColorMode.SEGMENTATION
+            #instance_mode = ColorMode.SEGMENTATION
             output = viz.draw_instance_predictions( predictions["instances"].to("cpu"))
         else: 
             predictions, segmentInfo = self.predictor(image)["panoptic_seg"]
@@ -61,8 +61,8 @@ class Detector:
     def onVideo(self, videoPath ):
         cap = cv.VideoCapture( videoPath )
         cont_frame = 0 
-        cv.namedWindow("Result", cv.WND_PROP_FULLSCREEN)
-        cv.setWindowProperty("Result", cv.WND_PROP_FULLSCREEN, cv.WINDOW_FULLSCREEN)
+        cv.namedWindow("Result", cv.WINDOW_NORMAL | cv.WINDOW_KEEPRATIO)
+        cv.resizeWindow("Result", 800, 600)
         while cap.isOpened():
             ret, frame = cap.read()
             if not ret:
