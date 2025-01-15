@@ -3,6 +3,9 @@ from detectron2.config import get_cfg
 from detectron2.data import MetadataCatalog
 from detectron2.utils.visualizer import ColorMode, Visualizer
 from detectron2 import model_zoo 
+import detectron2
+from detectron2.projects import point_rend 
+
 
 import cv2 as cv 
 import numpy as np 
@@ -34,7 +37,11 @@ class Detector:
         elif model_type == "LVIS":  # LVIS instance segmentation
             self.cfg.merge_from_file( model_zoo.get_config_file("LVISv0.5-InstanceSegmentation/mask_rcnn_X_101_32x8d_FPN_1x.yaml"))
             self.cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("LVISv0.5-InstanceSegmentation/mask_rcnn_X_101_32x8d_FPN_1x.yaml")
-            
+        elif model_type == "PR":  # PointRend instance segmentation
+            point_rend.add_pointrend_config(self.cfg)
+            self.cfg.merge_from_file("detectron2/projects/PointRend/configs/InstanceSegmentation/pointrend_rcnn_X_101_32x8d_FPN_3x_coco.yaml")
+            self.cfg.MODEL.WEIGHTS = "detectron2://PointRend/InstanceSegmentation/pointrend_rcnn_X_101_32x8d_FPN_3x_coco/28119989/model_final_ba17b9.pkl"
+
         self.cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.7
         self.cfg.MODEL.DEVICE = "cpu" # you can set "cpu" or "cuda"
         
@@ -63,28 +70,31 @@ class Detector:
         cont_frame = 0 
         cv.namedWindow("Result", cv.WINDOW_NORMAL | cv.WINDOW_KEEPRATIO)
         cv.resizeWindow("Result", 800, 600)
+        first_frame = int(input("Number of the first frame: "))
         while cap.isOpened():
             ret, frame = cap.read()
             if not ret:
+                print( "Can't receive frame (stream end?). Exiting ..." )
                 break
             num_frame = cap.get(cv.CAP_PROP_FRAME_COUNT)
             cont_frame = cont_frame + 1
             print(f"frame {int(num_frame)} / {cont_frame}")
-            if self.model_type != "PS": 
-                predictions = self.predictor( frame )
-                viz = Visualizer( frame[ : , : , : : -1 ] , 
-                                metadata = MetadataCatalog.get( self.cfg.DATASETS.TRAIN[0] ), 
-                                instance_mode = self.cm )
-                output = viz.draw_instance_predictions( predictions["instances"].to("cpu"))
-            else: 
-                predictions, segmentInfo = self.predictor(frame)["panoptic_seg"]
-                viz = Visualizer( frame[ : , : , : : -1 ] , 
-                                metadata = MetadataCatalog.get( self.cfg.DATASETS.TRAIN[0] ), 
-                                )
-                output = viz.draw_panoptic_seg_predictions(predictions.to("cpu"), segmentInfo)
-            cv.imshow( "Result" , output.get_image()[ : , : , : : -1 ] )
-            if cv.waitKey(1) & 0xFF == ord('q'):
-                break
+            if cont_frame > first_frame :
+                if self.model_type != "PS": 
+                    predictions = self.predictor( frame )
+                    viz = Visualizer( frame[ : , : , : : -1 ] , 
+                                    metadata = MetadataCatalog.get( self.cfg.DATASETS.TRAIN[0] ), 
+                                    instance_mode = self.cm )
+                    output = viz.draw_instance_predictions( predictions["instances"].to("cpu"))
+                else: 
+                    predictions, segmentInfo = self.predictor(frame)["panoptic_seg"]
+                    viz = Visualizer( frame[ : , : , : : -1 ] , 
+                                    metadata = MetadataCatalog.get( self.cfg.DATASETS.TRAIN[0] ), 
+                                    )
+                    output = viz.draw_panoptic_seg_predictions(predictions.to("cpu"), segmentInfo)
+                cv.imshow( "Result" , output.get_image()[ : , : , : : -1 ] )
+                if cv.waitKey(1) & 0xFF == ord('q'):
+                    break
         cap.release()
         cv.destroyAllWindows()
         
